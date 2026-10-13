@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -78,6 +79,8 @@ func TestReadFixture(t *testing.T) {
 			CPUSystemTime:         0.04,
 			ReadBytes:             1814455,
 			WriteBytes:            0,
+			ReadOps:               5534,
+			WriteOps:              1,
 			MajorPageFaults:       0x2ff,
 			MinorPageFaults:       0x643,
 			CtxSwitchVoluntary:    72,
@@ -103,6 +106,33 @@ func TestReadFixture(t *testing.T) {
 func noerr(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
+	}
+}
+
+func TestReadIOOpsUnavailable(t *testing.T) {
+	mountPoint := t.TempDir()
+	noerr(t, os.Mkdir(filepath.Join(mountPoint, "14804"), 0755))
+	for _, name := range []string{"stat", "14804/stat", "14804/status"} {
+		data, err := os.ReadFile(filepath.Join("../fixtures", name))
+		noerr(t, err)
+		noerr(t, os.WriteFile(filepath.Join(mountPoint, name), data, 0644))
+	}
+
+	procs := allprocs(mountPoint)
+	defer procs.Close()
+	if !procs.Next() {
+		t.Fatal("fixture process not found")
+	}
+	counts, partial, err := procs.GetCounts()
+	noerr(t, err)
+	if partial != 1 {
+		t.Errorf("got %d partial errors, want 1 for missing io file", partial)
+	}
+	if counts.ReadOps != 0 || counts.WriteOps != 0 {
+		t.Errorf("got I/O operations %d/%d, want 0/0", counts.ReadOps, counts.WriteOps)
+	}
+	if counts.CPUUserTime != 0.1 {
+		t.Errorf("got CPU user time %g, want 0.1", counts.CPUUserTime)
 	}
 }
 

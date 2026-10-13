@@ -34,6 +34,18 @@ var (
 		[]string{"groupname"},
 		nil)
 
+	readOpsDesc = prometheus.NewDesc(
+		"namedprocess_namegroup_read_ops_total",
+		"number of read I/O operations by this group based on /proc/[pid]/io syscr; not a direct measure of physical disk operations, since cached I/O can also count",
+		[]string{"groupname"},
+		nil)
+
+	writeOpsDesc = prometheus.NewDesc(
+		"namedprocess_namegroup_write_ops_total",
+		"number of write I/O operations by this group based on /proc/[pid]/io syscw; not a direct measure of physical disk operations, since cached I/O can also count",
+		[]string{"groupname"},
+		nil)
+
 	majorPageFaultsDesc = prometheus.NewDesc(
 		"namedprocess_namegroup_major_page_faults_total",
 		"Major page faults",
@@ -130,6 +142,12 @@ var (
 		[]string{"groupname", "threadname", "iomode"},
 		nil)
 
+	threadIoOpsDesc = prometheus.NewDesc(
+		"namedprocess_namegroup_thread_io_ops_total",
+		"number of read/write I/O operations by these threads based on /proc/[pid]/task/[tid]/io syscr/syscw; not a direct measure of physical disk operations, since cached I/O can also count",
+		[]string{"groupname", "threadname", "iomode"},
+		nil)
+
 	threadMajorPageFaultsDesc = prometheus.NewDesc(
 		"namedprocess_namegroup_thread_major_page_faults_total",
 		"Major page faults for these threads",
@@ -217,6 +235,8 @@ func (p *NamedProcessCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- numprocsDesc
 	ch <- readBytesDesc
 	ch <- writeBytesDesc
+	ch <- readOpsDesc
+	ch <- writeOpsDesc
 	ch <- membytesDesc
 	ch <- openFDsDesc
 	ch <- worstFDRatioDesc
@@ -233,6 +253,7 @@ func (p *NamedProcessCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- threadCountDesc
 	ch <- threadCpuSecsDesc
 	ch <- threadIoBytesDesc
+	ch <- threadIoOpsDesc
 	ch <- threadMajorPageFaultsDesc
 	ch <- threadMinorPageFaultsDesc
 	ch <- threadContextSwitchesDesc
@@ -283,6 +304,10 @@ func (p *NamedProcessCollector) scrape(ch chan<- prometheus.Metric) {
 				prometheus.CounterValue, float64(gcounts.ReadBytes), gname)
 			ch <- prometheus.MustNewConstMetric(writeBytesDesc,
 				prometheus.CounterValue, float64(gcounts.WriteBytes), gname)
+			ch <- prometheus.MustNewConstMetric(readOpsDesc,
+				prometheus.CounterValue, float64(gcounts.ReadOps), gname)
+			ch <- prometheus.MustNewConstMetric(writeOpsDesc,
+				prometheus.CounterValue, float64(gcounts.WriteOps), gname)
 			ch <- prometheus.MustNewConstMetric(majorPageFaultsDesc,
 				prometheus.CounterValue, float64(gcounts.MajorPageFaults), gname)
 			ch <- prometheus.MustNewConstMetric(minorPageFaultsDesc,
@@ -332,6 +357,12 @@ func (p *NamedProcessCollector) scrape(ch chan<- prometheus.Metric) {
 						gname, thr.Name, "read")
 					ch <- prometheus.MustNewConstMetric(threadIoBytesDesc,
 						prometheus.CounterValue, float64(thr.WriteBytes),
+						gname, thr.Name, "write")
+					ch <- prometheus.MustNewConstMetric(threadIoOpsDesc,
+						prometheus.CounterValue, float64(thr.ReadOps),
+						gname, thr.Name, "read")
+					ch <- prometheus.MustNewConstMetric(threadIoOpsDesc,
+						prometheus.CounterValue, float64(thr.WriteOps),
 						gname, thr.Name, "write")
 					ch <- prometheus.MustNewConstMetric(threadMajorPageFaultsDesc,
 						prometheus.CounterValue, float64(thr.MajorPageFaults),
