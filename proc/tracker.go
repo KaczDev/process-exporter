@@ -195,7 +195,9 @@ func (t *Tracker) ignore(id ID, startTime time.Time) {
 func (tp *trackedProc) update(metrics Metrics, now time.Time, cerrs *CollectErrors, threads []Thread) {
 	// newcounts: resource consumption since last cycle
 	newcounts := metrics.Counts
+	newcounts.preserveIOOps(tp.metrics.Counts)
 	tp.lastaccum = newcounts.Sub(tp.metrics.Counts)
+	metrics.Counts = newcounts
 	tp.metrics = metrics
 	tp.lastUpdate = now
 	if len(threads) > 1 {
@@ -205,7 +207,8 @@ func (tp *trackedProc) update(metrics Metrics, now time.Time, cerrs *CollectErro
 		for _, thr := range threads {
 			tt := trackedThread{thr.ThreadName, thr.Counts, Delta{}, now, thr.Wchan}
 			if old, ok := tp.threads[thr.ThreadID]; ok {
-				tt.latest, tt.accum = thr.Counts.Sub(old.accum), thr.Counts
+				tt.accum.preserveIOOps(old.accum)
+				tt.latest = tt.accum.Sub(old.accum)
 			}
 			tp.threads[thr.ThreadID] = tt
 		}

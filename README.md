@@ -249,6 +249,28 @@ Bytes written based on /proc/[pid]/io field write_bytes.  As with
 read_bytes, somewhat dubious.  May be useful for isolating which processes
 are doing the most I/O, but probably not measuring just how much I/O is happening.
 
+### read_ops_total counter
+
+Number of read I/O operations based on /proc/[pid]/io field syscr, which counts
+read system calls. This is **not a direct measure of physical disk operations**:
+I/O served from cache can count too, as can I/O to non-disk file descriptors.
+
+Use `rate(namedprocess_namegroup_read_ops_total[5m])` to display read operations
+per second (IOPS) for each process group.
+
+### write_ops_total counter
+
+Number of write I/O operations based on /proc/[pid]/io field syscw, which counts
+write system calls. Like read_ops_total, this is **not a direct measure of
+physical disk operations**: cached and non-disk I/O can count too.
+
+Use `rate(namedprocess_namegroup_write_ops_total[5m])` to display write operations
+per second (IOPS) for each process group.
+
+Both operation counters have the same /proc/[pid]/io permission requirements
+as read_bytes_total and write_bytes_total. These are cumulative counters, not
+precomputed rates; the sampling interval is controlled by your scraper.
+
 ### major_page_faults_total counter
 
 Number of major page faults based on /proc/[pid]/stat field majflt(12).
@@ -347,6 +369,13 @@ the label `cpumode` is used to distinguish between `user` and `system` time.
 Same as read_bytes_total and write_bytes_total, but broken down
 per-thread subgroup.  Unlike read_bytes_total/write_bytes_total,
 the label `iomode` is used to distinguish between `read` and `write` bytes.
+
+### thread_io_ops_total counter
+
+Same as read_ops_total and write_ops_total, but broken down per-thread subgroup
+using /proc/[pid]/task/[tid]/io. The label `iomode` distinguishes between `read`
+and `write` operations. This is **not a direct measure of physical disk
+operations**; cached and non-disk I/O can count too.
 
 ### thread_major_page_faults_total counter
 

@@ -46,6 +46,8 @@ type (
 		MinorPageFaults       uint64
 		CtxSwitchVoluntary    uint64
 		CtxSwitchNonvoluntary uint64
+		ReadOps               uint64
+		WriteOps              uint64
 	}
 
 	// Memory describes a proc's memory usage.
@@ -212,6 +214,8 @@ func (c *Counts) Add(c2 Delta) {
 	c.MinorPageFaults += c2.MinorPageFaults
 	c.CtxSwitchVoluntary += c2.CtxSwitchVoluntary
 	c.CtxSwitchNonvoluntary += c2.CtxSwitchNonvoluntary
+	c.ReadOps += c2.ReadOps
+	c.WriteOps += c2.WriteOps
 }
 
 // Sub subtracts c2 from the counts.
@@ -224,7 +228,16 @@ func (c Counts) Sub(c2 Counts) Delta {
 	c.MinorPageFaults -= c2.MinorPageFaults
 	c.CtxSwitchVoluntary -= c2.CtxSwitchVoluntary
 	c.CtxSwitchNonvoluntary -= c2.CtxSwitchNonvoluntary
+	c.ReadOps -= c2.ReadOps
+	c.WriteOps -= c2.WriteOps
 	return Delta(c)
+}
+
+func (c *Counts) preserveIOOps(previous Counts) {
+	// Unreadable I/O stats are reported as zero; retain the baseline to avoid
+	// underflow and double-counting when stats become readable again.
+	c.ReadOps = max(c.ReadOps, previous.ReadOps)
+	c.WriteOps = max(c.WriteOps, previous.WriteOps)
 }
 
 func (s *States) Add(s2 States) {
@@ -431,6 +444,8 @@ func (p proc) GetCounts() (Counts, int, error) {
 		CPUSystemTime:         float64(stat.STime) / userHZ,
 		ReadBytes:             io.ReadBytes,
 		WriteBytes:            io.WriteBytes,
+		ReadOps:               io.SyscR,
+		WriteOps:              io.SyscW,
 		MajorPageFaults:       uint64(stat.MajFlt),
 		MinorPageFaults:       uint64(stat.MinFlt),
 		CtxSwitchVoluntary:    uint64(status.VoluntaryCtxtSwitches),
